@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 
 class KNN:
 
@@ -10,23 +10,27 @@ class KNN:
 			 k_func=None, measure=None):
 		self.X = X.astype(float)
 		self.k = k
-		self.y = y.astype(float)
+		if reg_clas:
+			self.y = y.astype(int)
+		else:
+			self.y = y.astype(float)
+			
 		self.N, self.d = X.shape
 		self.std = standardize
 		if self.std:
-			self.mu = np.mean(X, axis=0, keepdims=True)
-			X -= self.mu
-			self.s = np.sqrt(np.sum(X**2, axis=0, keepdims=True))
-			X /= self.s
-		if k_func in None:
+			self.mu = np.mean(self.X, axis=0)
+			self.X -= self.mu[np.newaxis, :]
+			self.s = np.sqrt(np.sum(self.X**2, axis=0))
+			self.X /= self.s[np.newaxis, :]
+		if k_func is None:
 			if reg_clas:
-				self.f = _mode
+				self.f = KNN._mode
 			else:
-				self.f = _mean
+				self.f = KNN._mean
 		else:
 			self.f = k_func
 		if measure is None:
-			self.m = _euclidean
+			self.m = KNN._euclidean
 
 	"""
 	Functions of k-nearest neighbours
@@ -47,22 +51,22 @@ class KNN:
 	"""
 	def _euclidean(x, y):
 		d = y - x
-		np.sqrt(np.sum(d**2))
+		return np.sqrt(np.sum(d**2))
 	
 	"""
-	Predicts output for a single observation.
+	Predicts output for observations in a single vector
 	"""
 	def predict(self, x):
+		if x.shape != (self.d,):
+			print(f'input vector dimension {x.shape} but fitted dimension {self.d}')
+			return
 		x = x.astype(float)
 		if self.std:
 			x -= self.mu
 			x /= self.s
 		dists = np.empty((self.N,), dtype=float)
 		for i in range(self.N):
-			dists[i] = self.m(X[i,], x)
-		# TODO: potentially use nlogn speed sort?
-		# question is what will be faster, O(kn) or O(nlogn)
-		# will the constant factor be too great in O(nlogn)?
+			dists[i] = self.m(self.X[i,], x)
 		order = np.arange(0, self.N)
 		for i in range(self.k):
 			for j in range(i+1, self.N):
@@ -73,4 +77,4 @@ class KNN:
 					temp = order[i]
 					order[i] = order[j]
 					order[j] = temp
-		return self.f(dists[order[:self.k]])
+		return self.f(self.y[order[:self.k],])
